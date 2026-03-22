@@ -22,32 +22,33 @@ env:
 
 jobs:
   # ── Security gate ────────────────────────────────────────────────────────────
+  # Runs before any AWS credentials are configured.
+  # Skipped on scheduled drift runs — no new code to scan.
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'  # skip security scan on scheduled drift runs
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
 
       - name: Gitleaks — secrets detection
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.4
+        uses: gitleaks/gitleaks-action@bf2dc8e55639c1e091e9b45970152e4313705814  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkov — IaC security scan
-        uses: bridgecrewio/checkov-action@b5b8e9e7a1e4e7b5e5e5e5e5e5e5e5e5e5e5e5e  # v12
+        uses: bridgecrewio/checkov-action@2fd3901c8feb52417f27f0d9800259a106c1ec1e  # v12
         with:
           directory: .
           framework: terraform
           output_format: cli,sarif
           output_file_path: console,checkov.sarif
           soft_fail: false
-          skip_check: >-
-            CKV_AWS_79
+          skip_check: CKV_AWS_79
 
       - name: Upload Checkov SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -55,27 +56,31 @@ jobs:
         with:
           sarif_file: checkov.sarif
 
-  # ── Terraform apply ──────────────────────────────────────────────────────────
-  apply:
-    name: Terraform Apply
+  # ── Terraform Plan ───────────────────────────────────────────────────────────
+  # Runs after security gate passes. Uploads the plan file as an artifact
+  # so the apply job can consume the exact same plan that was reviewed.
+  plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
     needs: [security]
     if: always() && (needs.security.result == 'success' || needs.security.result == 'skipped')
-    environment: stage  # GitHub Environment — add required reviewers here for approval gate
+
+    outputs:
+      exitcode: ${{ steps.plan.outputs.exitcode }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
+        uses: aws-actions/configure-aws-credentials@b1257c400167d727708335212f95607835cd03fd  # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-terraform-apply
+          role-session-name: github-terraform-plan
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269ef032  # v3.1.2
+        uses: hashicorp/setup-terraform@b0cc02d63867e0daaa034a47e2cdf5d525a863a1  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
@@ -87,14 +92,24 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan_output.txt
-        # Exit codes: 0 = no changes, 1 = error, 2 = changes present
+        run: |
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan_output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
         continue-on-error: true
+
+      # Upload plan binary so apply job uses the exact same plan — no re-plan drift
+      - name: Upload plan artifact
+        if: steps.plan.outputs.exitcode == '2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 1
 
       # On scheduled drift run — open a GitHub issue if changes are detected
       - name: Open drift issue
         if: github.event_name == 'schedule' && steps.plan.outputs.exitcode == '2'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a  # v7
         with:
           script: |
             const fs = require('fs');
@@ -107,11 +122,44 @@ jobs:
               body: `Scheduled drift detection found infrastructure changes not reflected in state.\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${plan}\n\`\`\`\n</details>`
             });
 
-      - name: Fail on drift (scheduled run)
-        if: github.event_name == 'schedule' && steps.plan.outputs.exitcode == '1'
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exitcode == '1'
         run: exit 1
 
-      # On push — apply only if there are actual changes (exitcode 2)
+  # ── Terraform Apply ──────────────────────────────────────────────────────────
+  # Only runs on push (not scheduled drift runs) and only when plan produced
+  # changes (exitcode 2). Downloads the exact plan artifact from the plan job.
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: [plan]
+    if: github.event_name == 'push' && needs.plan.outputs.exitcode == '2'
+    environment: stage  # add required reviewers in GitHub Settings → Environments
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@b1257c400167d727708335212f95607835cd03fd  # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-terraform-apply
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b0cc02d63867e0daaa034a47e2cdf5d525a863a1  # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      # Download the plan file produced by the plan job
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
       - name: Terraform Apply
-        if: github.event_name == 'push' && steps.plan.outcome != 'failure'
         run: terraform apply -input=false -auto-approve tfplan
