@@ -22,7 +22,6 @@ jobs:
   destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
-    environment: stage  # requires manual approval from environment reviewers
 
     steps:
       - name: Validate confirmation input

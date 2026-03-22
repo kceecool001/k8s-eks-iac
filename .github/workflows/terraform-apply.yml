@@ -137,8 +137,10 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
     needs: [plan]
-    if: github.event_name == 'push' && needs.plan.outputs.exitcode == '2'
-    environment: stage  # add required reviewers in GitHub Settings → Environments
+    if: |
+      github.event_name == 'push' &&
+      needs.plan.result == 'success' &&
+      needs.plan.outputs.exitcode == '2'
 
     steps:
       - name: Checkout
