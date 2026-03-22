@@ -98,8 +98,8 @@ jobs:
           terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan_output.txt
           TF_EXIT=${PIPESTATUS[0]}
           echo "exitcode=${TF_EXIT}" >> $GITHUB_OUTPUT
-          exit ${TF_EXIT}
-        continue-on-error: true
+          # exit 0 always — apply job reads exitcode from output, not job result
+          exit 0
 
       # Upload plan binary so apply job uses the exact same plan — no re-plan drift
       - name: Upload plan artifact
@@ -137,10 +137,7 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
     needs: [plan]
-    if: |
-      github.event_name == 'push' &&
-      needs.plan.result == 'success' &&
-      needs.plan.outputs.exitcode == '2'
+    if: github.event_name == 'push' && needs.plan.outputs.exitcode == '2'
 
     steps:
       - name: Checkout
