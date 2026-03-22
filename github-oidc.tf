@@ -60,15 +60,29 @@ resource "aws_iam_role_policy" "github_actions" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "TerraformStateAccess"
+        Sid    = "TerraformStateBucket"
         Effect = "Allow"
         Action = [
-          "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:HeadObject", "s3:HeadBucket"
+          "s3:ListBucket", "s3:GetBucketLocation",
+          "s3:GetEncryptionConfiguration"
         ]
-        Resource = [
-          "arn:aws:s3:::eks-tfstate-kceetf",
-          "arn:aws:s3:::eks-tfstate-kceetf/*"
+        Resource = "arn:aws:s3:::eks-tfstate-kceetf"
+      },
+      {
+        Sid    = "TerraformStateObjects"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject", "s3:PutObject", "s3:DeleteObject"
         ]
+        Resource = "arn:aws:s3:::eks-tfstate-kceetf/*"
+      },
+      {
+        Sid    = "TerraformStateLock"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:DescribeTable"
+        ]
+        Resource = "arn:aws:dynamodb:eu-central-1:*:table/eks-tfstate-kceetf-lock"
       },
       {
         Sid    = "EKSManagement"
@@ -123,13 +137,14 @@ resource "aws_iam_role_policy" "github_actions" {
         Sid    = "IAMRoleManagement"
         Effect = "Allow"
         Action = [
-          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:GetRolePolicy",
           "iam:AttachRolePolicy", "iam:DetachRolePolicy",
           "iam:PutRolePolicy", "iam:DeleteRolePolicy",
           "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
-          "iam:PassRole", "iam:TagRole", "iam:UntagRole"
+          "iam:PassRole", "iam:TagRole", "iam:UntagRole",
+          "iam:UpdateAssumeRolePolicy"
         ]
-        Resource = "arn:aws:iam::*:role/*-eks-*"
+        Resource = "arn:aws:iam::*:role/*"
       },
       {
         Sid    = "IAMOIDCManagement"
@@ -144,11 +159,12 @@ resource "aws_iam_role_policy" "github_actions" {
         Sid    = "KMSAccess"
         Effect = "Allow"
         Action = [
-          "kms:CreateKey", "kms:DescribeKey", "kms:GetKeyPolicy",
+          "kms:CreateKey", "kms:DescribeKey", "kms:GetKeyPolicy", "kms:PutKeyPolicy",
           "kms:GetKeyRotationStatus", "kms:ListResourceTags",
           "kms:EnableKeyRotation", "kms:ScheduleKeyDeletion",
           "kms:CreateAlias", "kms:DeleteAlias", "kms:ListAliases",
-          "kms:TagResource", "kms:UntagResource"
+          "kms:TagResource", "kms:UntagResource",
+          "kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:ReEncryptFrom", "kms:ReEncryptTo"
         ]
         Resource = [
           "arn:aws:kms:eu-central-1:*:key/*",

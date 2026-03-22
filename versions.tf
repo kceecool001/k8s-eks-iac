@@ -18,10 +18,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "eks-tfstate-kceetf"
-    key          = "eks-stage/terraform.tfstate"
-    region       = "eu-central-1"
-    encrypt      = true
+    bucket         = "eks-tfstate-kceetf"
+    key            = "eks-stage/terraform.tfstate"
+    region         = "eu-central-1"
+    encrypt        = true
+    dynamodb_table = "eks-tfstate-kceetf-lock"
   }
 }
 
