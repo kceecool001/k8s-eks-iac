@@ -14,7 +14,8 @@ resource "aws_dynamodb_table" "tf_state_lock" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = aws_kms_key.eks.arn
   }
 
   tags = local.common_tags
@@ -45,6 +46,13 @@ resource "aws_kms_key" "eks" {
         Sid       = "AllowEKS"
         Effect    = "Allow"
         Principal = { Service = "eks.amazonaws.com" }
+        Action    = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowDynamoDB"
+        Effect    = "Allow"
+        Principal = { Service = "dynamodb.amazonaws.com" }
         Action    = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
         Resource  = "*"
       },
