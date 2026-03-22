@@ -130,12 +130,10 @@ PR opened                     Merge to main              Manual
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars — set github_org and github_repo
+# edit terraform.tfvars
 
 terraform init
-terraform apply -target=aws_iam_role.github_actions \
-  -var="github_org=<your-org>" \
-  -var="github_repo=<your-repo>"
+terraform apply -target=aws_iam_role.github_actions
 ```
 
 Copy the `github_actions_role_arn` output value.

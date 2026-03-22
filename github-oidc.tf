@@ -6,11 +6,13 @@
 variable "github_org" {
   description = "GitHub organisation or username"
   type        = string
+  default     = "kceecool001"
 }
 
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
+  default     = "k8s-eks-iac"
 }
 
 # GitHub's OIDC provider — already exists globally in AWS, just needs to be
