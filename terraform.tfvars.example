@@ -1,0 +1,33 @@
+project_name = "<your-project-name>"
+environment  = "stage"
+aws_region   = "eu-central-1"
+
+# VPC Configuration
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["eu-central-1a", "eu-central-1b"]
+
+# EKS Configuration
+eks_version = "1.29"
+
+# Restrict API server access to your VPN/office CIDR — never use 0.0.0.0/0 in production
+cluster_endpoint_public_access_cidrs = ["<your-vpn-or-office-cidr>/32"]
+
+# Node Group Configuration
+node_instance_type      = "t3.medium"
+node_capacity_type      = "SPOT"   # use ON_DEMAND for production
+node_group_min_size     = 1
+node_group_max_size     = 3
+node_group_desired_size = 2
+
+# GitHub Actions OIDC (used by github-oidc.tf bootstrap)
+# github_org  = "<your-github-org>"
+# github_repo = "<your-repo-name>"
+
+# Optional: additional IAM roles for aws-auth (CI/CD pipelines, external teams)
+# aws_auth_roles = [
+#   {
+#     rolearn  = "arn:aws:iam::123456789012:role/my-cicd-role"
+#     username = "cicd"
+#     groups   = ["eks:developers"]
+#   }
+# ]

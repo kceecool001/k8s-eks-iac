@@ -1,0 +1,66 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm teardown of the EKS cluster'
+        required: true
+      reason:
+        description: "Reason for destroying the cluster (logged in audit trail)"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.7.5"
+  AWS_REGION: "eu-central-1"
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    environment: stage  # requires manual approval from environment reviewers
+
+    steps:
+      - name: Validate confirmation input
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        if: env.CONFIRM != 'destroy'
+        run: |
+          echo "Expected 'destroy', got '${CONFIRM}'. Aborting."
+          exit 1
+
+      - name: Audit log
+        env:
+          ACTOR: ${{ github.actor }}
+          REASON: ${{ github.event.inputs.reason }}
+          REF: ${{ github.ref }}
+        run: |
+          echo "Destroy triggered by: ${ACTOR}"
+          echo "Reason: ${REASON}"
+          echo "Timestamp: $(date -u)"
+          echo "Ref: ${REF}"
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-terraform-destroy
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269ef032  # v3.1.2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Destroy
+        run: terraform destroy -input=false -auto-approve

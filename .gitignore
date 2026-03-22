@@ -1,0 +1,24 @@
+# Terraform state & cache — never commit these
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars.backup
+*.tfplan
+crash.log
+
+# tfvars contains real IPs and environment values — use terraform.tfvars.example instead
+terraform.tfvars
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Checkov / scan artefacts
+checkov.sarif
+plan_output.txt
