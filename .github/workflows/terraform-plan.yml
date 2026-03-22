@@ -48,7 +48,7 @@ jobs:
           output_file_path: console,checkov.sarif
           soft_fail: false
           skip_check: >-
-            CKV_AWS_79
+            CKV_AWS_79,CKV_AWS_39
 
       # Upload Checkov SARIF results to GitHub Security tab
       - name: Upload Checkov SARIF

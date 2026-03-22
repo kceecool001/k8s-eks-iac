@@ -38,6 +38,12 @@ variable "eks_version" {
   default     = "1.29"
 }
 
+variable "cluster_kms_key_arn" {
+  description = "KMS key ARN for EKS secrets encryption. Created by the kms_key resource in main.tf if not provided."
+  type        = string
+  default     = ""
+}
+
 variable "aws_auth_roles" {
   description = "Additional IAM roles to add to aws-auth (e.g. CI/CD pipelines)"
   type = list(object({

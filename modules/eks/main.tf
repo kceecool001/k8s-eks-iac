@@ -68,12 +68,23 @@ resource "aws_eks_cluster" "main" {
   vpc_config {
     subnet_ids              = var.subnet_ids
     endpoint_private_access = true
-    # Public access is kept on for lab/staging convenience but locked to specific CIDRs.
-    # Well-Architected SEC05: never expose the API server to 0.0.0.0/0 in production.
+    # Public access kept on for lab/staging — locked to specific CIDRs (not 0.0.0.0/0).
+    # CKV_AWS_39 skipped intentionally: disable public endpoint in production.
     endpoint_public_access  = true
     public_access_cidrs     = var.cluster_endpoint_public_access_cidrs
     security_group_ids      = [aws_security_group.cluster.id]
   }
+
+  # CKV_AWS_58: encrypt Kubernetes secrets at rest using a customer-managed KMS key
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = var.cluster_kms_key_arn
+    }
+  }
+
+  # CKV_AWS_37: enable all control plane log types for audit and diagnostics
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   tags = var.common_tags
 

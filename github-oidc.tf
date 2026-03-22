@@ -51,7 +51,7 @@ resource "aws_iam_role" "github_actions" {
   }
 }
 
-# Scoped policy — only the permissions needed to manage this EKS project
+# Scoped policy — least-privilege permissions for managing this EKS project
 resource "aws_iam_role_policy" "github_actions" {
   name = "github-actions-eks-terraform-policy"
   role = aws_iam_role.github_actions.id
@@ -74,30 +74,82 @@ resource "aws_iam_role_policy" "github_actions" {
         Sid    = "EKSManagement"
         Effect = "Allow"
         Action = [
-          "eks:*"
+          "eks:CreateCluster", "eks:DeleteCluster", "eks:DescribeCluster",
+          "eks:ListClusters", "eks:UpdateClusterConfig", "eks:UpdateClusterVersion",
+          "eks:CreateNodegroup", "eks:DeleteNodegroup", "eks:DescribeNodegroup",
+          "eks:UpdateNodegroupConfig", "eks:UpdateNodegroupVersion",
+          "eks:CreateAddon", "eks:DeleteAddon", "eks:DescribeAddon", "eks:UpdateAddon",
+          "eks:TagResource", "eks:UntagResource",
+          "eks:AssociateIdentityProviderConfig", "eks:DescribeIdentityProviderConfig",
+          "eks:DisassociateIdentityProviderConfig", "eks:ListIdentityProviderConfigs",
+          "eks:CreateAccessEntry", "eks:DeleteAccessEntry", "eks:DescribeAccessEntry"
         ]
-        Resource = "*"
+        Resource = "arn:aws:eks:eu-central-1:*:cluster/*"
       },
       {
         Sid    = "EC2VPCManagement"
         Effect = "Allow"
         Action = [
-          "ec2:*"
+          "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs", "ec2:ModifyVpcAttribute",
+          "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
+          "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway",
+          "ec2:AttachInternetGateway", "ec2:DetachInternetGateway", "ec2:DescribeInternetGateways",
+          "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses",
+          "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
+          "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:DescribeRouteTables",
+          "ec2:CreateRoute", "ec2:DeleteRoute",
+          "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
+          "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup", "ec2:DescribeSecurityGroups",
+          "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupEgress",
+          "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
+          "ec2:DescribeAvailabilityZones", "ec2:DescribeAccountAttributes",
+          "ec2:DescribeInstances", "ec2:DescribeLaunchTemplates",
+          "ec2:CreateLaunchTemplate", "ec2:DeleteLaunchTemplate"
         ]
         Resource = "*"
       },
       {
-        Sid    = "IAMManagement"
+        Sid    = "IAMRoleManagement"
         Effect = "Allow"
         Action = [
-          "iam:CreateRole", "iam:DeleteRole", "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy",
-          "iam:GetRole", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
-          "iam:PassRole", "iam:CreateOpenIDConnectProvider",
-          "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider",
-          "iam:TagOpenIDConnectProvider", "iam:TagRole", "iam:UntagRole"
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+          "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+          "iam:PutRolePolicy", "iam:DeleteRolePolicy",
+          "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+          "iam:PassRole", "iam:TagRole", "iam:UntagRole"
+        ]
+        Resource = "arn:aws:iam::*:role/*-eks-*"
+      },
+      {
+        Sid    = "IAMOIDCManagement"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider",
+          "iam:GetOpenIDConnectProvider", "iam:TagOpenIDConnectProvider"
+        ]
+        Resource = "arn:aws:iam::*:oidc-provider/*"
+      },
+      {
+        Sid    = "KMSAccess"
+        Effect = "Allow"
+        Action = [
+          "kms:CreateKey", "kms:DescribeKey", "kms:GetKeyPolicy",
+          "kms:GetKeyRotationStatus", "kms:ListResourceTags",
+          "kms:EnableKeyRotation", "kms:ScheduleKeyDeletion",
+          "kms:CreateAlias", "kms:DeleteAlias", "kms:ListAliases",
+          "kms:TagResource", "kms:UntagResource"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+          "logs:PutRetentionPolicy", "logs:TagLogGroup", "logs:ListTagsLogGroup"
+        ]
+        Resource = "arn:aws:logs:eu-central-1:*:log-group:/aws/*"
       }
     ]
   })

@@ -1,3 +1,16 @@
+# KMS key for EKS secrets encryption (CKV_AWS_58)
+resource "aws_kms_key" "eks" {
+  description             = "KMS key for EKS secrets encryption — ${local.cluster_name}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags                    = local.common_tags
+}
+
+resource "aws_kms_alias" "eks" {
+  name          = "alias/${local.cluster_name}-secrets"
+  target_key_id = aws_kms_key.eks.key_id
+}
+
 # VPC Module - Creates networking infrastructure
 module "vpc" {
   source = "./modules/vpc"
@@ -19,6 +32,7 @@ module "eks" {
   vpc_id                               = module.vpc.vpc_id
   vpc_cidr                             = var.vpc_cidr
   cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  cluster_kms_key_arn                  = aws_kms_key.eks.arn
   common_tags                          = local.common_tags
 
   depends_on = [module.vpc]

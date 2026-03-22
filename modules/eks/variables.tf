@@ -31,6 +31,11 @@ variable "vpc_cidr" {
   type        = string
 }
 
+variable "cluster_kms_key_arn" {
+  description = "KMS key ARN for EKS secrets encryption (CKV_AWS_58)"
+  type        = string
+}
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
