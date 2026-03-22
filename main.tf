@@ -1,9 +1,40 @@
-# KMS key for EKS secrets encryption (CKV_AWS_58)
+# KMS key for EKS secrets encryption and CloudWatch log group encryption
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 resource "aws_kms_key" "eks" {
   description             = "KMS key for EKS secrets encryption — ${local.cluster_name}"
   deletion_window_in_days = 7
   enable_key_rotation     = true
   tags                    = local.common_tags
+
+  # CKV2_AWS_64: explicit key policy — least-privilege, no wildcard principal
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowEKS"
+        Effect    = "Allow"
+        Principal = { Service = "eks.amazonaws.com" }
+        Action    = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowCloudWatchLogs"
+        Effect    = "Allow"
+        Principal = { Service = "logs.${data.aws_region.current.name}.amazonaws.com" }
+        Action    = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey", "kms:ReEncrypt*"]
+        Resource  = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_kms_alias" "eks" {
@@ -19,6 +50,7 @@ module "vpc" {
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
+  kms_key_id         = aws_kms_key.eks.arn
   common_tags        = local.common_tags
 }
 

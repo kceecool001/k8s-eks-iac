@@ -18,6 +18,11 @@ variable "availability_zones" {
   type        = list(string)
 }
 
+variable "kms_key_id" {
+  description = "KMS key ARN for CloudWatch log group encryption"
+  type        = string
+}
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
