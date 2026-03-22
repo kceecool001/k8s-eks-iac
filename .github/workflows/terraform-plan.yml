@@ -7,6 +7,7 @@ on:
       - "**.tf"
       - "**.tfvars"
       - ".github/workflows/terraform-*.yml"
+  workflow_dispatch:  # allow manual trigger for testing
 
 # Least-privilege permissions — only what each step needs
 permissions:

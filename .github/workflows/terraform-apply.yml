@@ -94,8 +94,11 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
+          set +e
           terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan_output.txt
-          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          TF_EXIT=${PIPESTATUS[0]}
+          echo "exitcode=${TF_EXIT}" >> $GITHUB_OUTPUT
+          exit ${TF_EXIT}
         continue-on-error: true
 
       # Upload plan binary so apply job uses the exact same plan — no re-plan drift
